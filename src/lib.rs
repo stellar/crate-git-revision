@@ -1,0 +1,102 @@
+//! Embed the git revision of a crate in its build.
+//!
+//! Supports embedding the version from a local or remote git repository the build
+//! is occurring in, as well as when `cargo install` or depending on a crate
+//! published to crates.io.
+//!
+//! It extracts the git revision in two ways:
+//! - From the `.cargo_vcs_info.json` file embedded in published crates.
+//! - From the git repository the build is occurring from in unpublished crates.
+//!
+//! Injects an environment variable `GIT_REVISION` into the build that contains
+//! the full git revision, with a `-dirty` suffix if the working directory is
+//! dirty.
+//!
+//! Requires the use of a build.rs build script. See [Build Scripts]() for more
+//! details on how Rust build scripts work.
+//!
+//! [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
+//!
+//! ### Examples
+//!
+//! Add the following to the crate's `Cargo.toml` file:
+//!
+//! ```toml
+//! [build_dependencies]
+//! crate-git-revision = "0.0.2"
+//! ```
+//!
+//! Add the following to the crate's `build.rs` file:
+//!
+//! ```rust
+//! crate_git_revision::init();
+//! ```
+//!
+//! Add the following to the crate's `lib.rs` or `main.rs` file:
+//!
+//! ```ignore
+//! pub const GIT_REVISION: &str = env!("GIT_REVISION");
+//! ```
+
+use std::{fs::read_to_string, process::Command, str};
+
+/// Initialize the GIT_REVISION environment variable with the git revision of
+/// the current crate.
+///
+/// Intended to be called from within a build script, `build.rs` file, for the
+/// crate.
+pub fn init() {
+    let _res = __init(&mut std::io::stdout());
+}
+
+fn __init(w: &mut impl std::io::Write) -> std::io::Result<()> {
+    // Require the build script to rerun if anything in the directory changes,
+    // since anything changing could affect the git revision.
+    writeln!(w, "cargo:rerun-if-changed=.")?;
+
+    let mut git_sha: Option<String> = None;
+
+    // Read the git revision from the JSON file embedded by cargo publish. This
+    // will get the version from published crates.
+    if let Ok(vcs_info) = read_to_string(".cargo_vcs_info.json") {
+        let vcs_info: Result<CargoVcsInfo, _> = serde_json::from_str(&vcs_info);
+        if let Ok(vcs_info) = vcs_info {
+            git_sha = Some(vcs_info.git.sha1);
+        }
+    }
+
+    // Read the git revision from the git repository containing the code being
+    // built.
+    if git_sha.is_none() {
+        if let Ok(git_describe) = Command::new("git")
+            .arg("describe")
+            .arg("--always")
+            .arg("--exclude='*'")
+            .arg("--long")
+            .arg("--abbrev=1000")
+            .arg("--dirty")
+            .output()
+            .map(|o| o.stdout)
+        {
+            git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+        }
+    }
+
+    if let Some(git_sha) = git_sha {
+        writeln!(w, "cargo:rustc-env=GIT_REVISION={git_sha}")?;
+    }
+
+    Ok(())
+}
+
+#[derive(serde_derive::Serialize, serde_derive::Deserialize, Default)]
+struct CargoVcsInfo {
+    git: CargoVcsInfoGit,
+}
+
+#[derive(serde_derive::Serialize, serde_derive::Deserialize, Default)]
+struct CargoVcsInfoGit {
+    sha1: String,
+}
+
+mod test;
