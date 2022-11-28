@@ -50,10 +50,6 @@ pub fn init() {
 }
 
 fn __init(w: &mut impl std::io::Write) -> std::io::Result<()> {
-    // Require the build script to rerun if anything in the directory changes,
-    // since anything changing could affect the git revision.
-    writeln!(w, "cargo:rerun-if-changed=.")?;
-
     let mut git_sha: Option<String> = None;
 
     // Read the git revision from the JSON file embedded by cargo publish. This

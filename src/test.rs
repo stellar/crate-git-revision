@@ -10,10 +10,9 @@ fn test_init() {
     assert!(res.is_ok());
     let out = str::from_utf8(&out).unwrap();
     println!("{out}");
-    assert!(Regex::new(
-        "cargo:rerun-if-changed=.
-cargo:rustc-env=GIT_REVISION=[0-9a-f]+(-dirty)?"
-    )
-    .unwrap()
-    .is_match(out));
+    assert!(
+        Regex::new("cargo:rustc-env=GIT_REVISION=[0-9a-f]+(-dirty)?")
+            .unwrap()
+            .is_match(out)
+    );
 }
