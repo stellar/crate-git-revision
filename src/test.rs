@@ -7,29 +7,32 @@ use std::process::Command;
 use std::str;
 
 fn init_git_repo(path: &Path) {
-    Command::new("git")
+    let status = Command::new("git")
         .current_dir(&path)
         .arg("init")
-        .output()
+        .status()
         .unwrap();
+    assert!(status.success());
 
     let file = path.join("readme");
     fs::write(&file, "hello").unwrap();
 
-    Command::new("git")
+    let status = Command::new("git")
         .current_dir(&path)
         .arg("add")
         .arg("readme")
-        .output()
+        .status()
         .unwrap();
+    assert!(status.success());
 
-    Command::new("git")
+    let status = Command::new("git")
         .current_dir(&path)
         .arg("commit")
         .arg("-am")
         .arg("test")
-        .output()
+        .status()
         .unwrap();
+    assert!(status.success());
 }
 
 #[test]
