@@ -7,29 +7,50 @@ use std::process::Command;
 use std::str;
 
 fn init_git_repo(path: &Path) {
-    Command::new("git")
+    let output = Command::new("git")
         .current_dir(&path)
         .arg("init")
         .output()
         .unwrap();
+    assert!(output.status.success());
+
+    let output = Command::new("git")
+        .current_dir(&path)
+        .arg("config")
+        .arg("user.email")
+        .arg("whatever@whatever.com")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let output = Command::new("git")
+        .current_dir(&path)
+        .arg("config")
+        .arg("user.name")
+        .arg("whatever")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
 
     let file = path.join("readme");
     fs::write(&file, "hello").unwrap();
 
-    Command::new("git")
+    let output = Command::new("git")
         .current_dir(&path)
         .arg("add")
         .arg("readme")
         .output()
         .unwrap();
+    assert!(output.status.success());
 
-    Command::new("git")
+    let output = Command::new("git")
         .current_dir(&path)
         .arg("commit")
         .arg("-am")
         .arg("test")
         .output()
         .unwrap();
+    assert!(output.status.success());
 }
 
 #[test]
@@ -65,6 +86,12 @@ fn test_init_subdir() {
     let mut out = Vec::new();
     let res = super::__init(&mut out, &manifest_dir);
     assert!(res.is_ok());
+
+    // In the subdir case, `git rev-parse --git-dir` returns an absolute path
+    // with symlinks resolved. This shows up on macs where the tempdir includes
+    // a symlink to /private/var.
+    let git_dir = std::fs::canonicalize(git_dir).unwrap();
+
     let out = str::from_utf8(&out).unwrap();
     let expected = &format!(
         "cargo:rerun-if-changed={gd}/.git/index
