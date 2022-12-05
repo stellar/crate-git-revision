@@ -38,7 +38,7 @@
 //! pub const GIT_REVISION: &str = env!("GIT_REVISION");
 //! ```
 
-use std::{fs::read_to_string, process::Command, str};
+use std::{fs::read_to_string, path::Path, process::Command, str};
 
 /// Initialize the GIT_REVISION environment variable with the git revision of
 /// the current crate.
@@ -46,15 +46,15 @@ use std::{fs::read_to_string, process::Command, str};
 /// Intended to be called from within a build script, `build.rs` file, for the
 /// crate.
 pub fn init() {
-    let _res = __init(&mut std::io::stdout());
+    let _res = __init(&mut std::io::stdout(), &std::env::current_dir().unwrap());
 }
 
-fn __init(w: &mut impl std::io::Write) -> std::io::Result<()> {
+fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()> {
     let mut git_sha: Option<String> = None;
 
     // Read the git revision from the JSON file embedded by cargo publish. This
     // will get the version from published crates.
-    if let Ok(vcs_info) = read_to_string(".cargo_vcs_info.json") {
+    if let Ok(vcs_info) = read_to_string(current_dir.join(".cargo_vcs_info.json")) {
         let vcs_info: Result<CargoVcsInfo, _> = serde_json::from_str(&vcs_info);
         if let Ok(vcs_info) = vcs_info {
             git_sha = Some(vcs_info.git.sha1);
@@ -64,32 +64,44 @@ fn __init(w: &mut impl std::io::Write) -> std::io::Result<()> {
     // Read the git revision from the git repository containing the code being
     // built.
     if git_sha.is_none() {
-        // Require the build script to rerun if relavent git state changes which
-        // changes the current git commit.
-        //  - .git/index: Changes if the index/staged files changes, which will
-        //  cause the repo to be dirty.
-        //  - .git/HEAD: Changes if the ref currently in the working directory,
-        //  and potentially the commit, to change.
-        //  - .git/refs: Changes to any files in refs could cause the current
-        //  commit to have changed if the ref in .git/HEAD is changed.
-        // Note: That changes in the above files may not result in material
-        // changes to the crate, but changes in any should invalidate the
-        // revision since the revision can be changed by any of the above.
-        writeln!(w, "cargo:rerun-if-changed=.git/index")?;
-        writeln!(w, "cargo:rerun-if-changed=.git/HEAD")?;
-        writeln!(w, "cargo:rerun-if-changed=.git/refs")?;
-
-        if let Ok(git_describe) = Command::new("git")
-            .arg("describe")
-            .arg("--always")
-            .arg("--exclude='*'")
-            .arg("--long")
-            .arg("--abbrev=1000")
-            .arg("--dirty")
+        if let Ok(git_dir) = Command::new("git")
+            .current_dir(current_dir)
+            .arg("rev-parse")
+            .arg("--git-dir")
             .output()
             .map(|o| o.stdout)
         {
-            git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+            let git_dir = String::from_utf8_lossy(&git_dir);
+            let git_dir = git_dir.trim();
+
+            // Require the build script to rerun if relavent git state changes which
+            // changes the current git commit.
+            //  - .git/index: Changes if the index/staged files changes, which will
+            //  cause the repo to be dirty.
+            //  - .git/HEAD: Changes if the ref currently in the working directory,
+            //  and potentially the commit, to change.
+            //  - .git/refs: Changes to any files in refs could cause the current
+            //  commit to have changed if the ref in .git/HEAD is changed.
+            // Note: That changes in the above files may not result in material
+            // changes to the crate, but changes in any should invalidate the
+            // revision since the revision can be changed by any of the above.
+            writeln!(w, "cargo:rerun-if-changed={}/index", git_dir)?;
+            writeln!(w, "cargo:rerun-if-changed={}/HEAD", git_dir)?;
+            writeln!(w, "cargo:rerun-if-changed={}/refs", git_dir)?;
+
+            if let Ok(git_describe) = Command::new("git")
+                .current_dir(current_dir)
+                .arg("describe")
+                .arg("--always")
+                .arg("--exclude='*'")
+                .arg("--long")
+                .arg("--abbrev=1000")
+                .arg("--dirty")
+                .output()
+                .map(|o| o.stdout)
+            {
+                git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+            }
         }
     }
 
