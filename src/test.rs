@@ -18,7 +18,7 @@ fn init_git_repo(path: &Path) {
         .current_dir(&path)
         .arg("config")
         .arg("user.email")
-        .arg("whatever@whatever.com")
+        .arg("whatever@example.com")
         .output()
         .unwrap();
     assert!(output.status.success());
