@@ -64,43 +64,59 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
     // Read the git revision from the git repository containing the code being
     // built.
     if git_sha.is_none() {
-        if let Ok(git_dir) = Command::new("git")
+        match Command::new("git")
             .current_dir(current_dir)
             .arg("rev-parse")
             .arg("--git-dir")
             .output()
             .map(|o| o.stdout)
         {
-            let git_dir = String::from_utf8_lossy(&git_dir);
-            let git_dir = git_dir.trim();
+            Err(e) => {
+                writeln!(
+                    w,
+                    "cargo:warning=Error getting git directory to get git revision: {e:?}"
+                )?;
+            }
+            Ok(git_dir) => {
+                let git_dir = String::from_utf8_lossy(&git_dir);
+                let git_dir = git_dir.trim();
 
-            // Require the build script to rerun if relavent git state changes which
-            // changes the current git commit.
-            //  - .git/index: Changes if the index/staged files changes, which will
-            //  cause the repo to be dirty.
-            //  - .git/HEAD: Changes if the ref currently in the working directory,
-            //  and potentially the commit, to change.
-            //  - .git/refs: Changes to any files in refs could cause the current
-            //  commit to have changed if the ref in .git/HEAD is changed.
-            // Note: That changes in the above files may not result in material
-            // changes to the crate, but changes in any should invalidate the
-            // revision since the revision can be changed by any of the above.
-            writeln!(w, "cargo:rerun-if-changed={git_dir}/index")?;
-            writeln!(w, "cargo:rerun-if-changed={git_dir}/HEAD")?;
-            writeln!(w, "cargo:rerun-if-changed={git_dir}/refs")?;
+                // Require the build script to rerun if relavent git state changes which
+                // changes the current git commit.
+                //  - .git/index: Changes if the index/staged files changes, which will
+                //  cause the repo to be dirty.
+                //  - .git/HEAD: Changes if the ref currently in the working directory,
+                //  and potentially the commit, to change.
+                //  - .git/refs: Changes to any files in refs could cause the current
+                //  commit to have changed if the ref in .git/HEAD is changed.
+                // Note: That changes in the above files may not result in material
+                // changes to the crate, but changes in any should invalidate the
+                // revision since the revision can be changed by any of the above.
+                writeln!(w, "cargo:rerun-if-changed={git_dir}/index")?;
+                writeln!(w, "cargo:rerun-if-changed={git_dir}/HEAD")?;
+                writeln!(w, "cargo:rerun-if-changed={git_dir}/refs")?;
 
-            if let Ok(git_describe) = Command::new("git")
-                .current_dir(current_dir)
-                .arg("describe")
-                .arg("--always")
-                .arg("--exclude='*'")
-                .arg("--long")
-                .arg("--abbrev=1000")
-                .arg("--dirty")
-                .output()
-                .map(|o| o.stdout)
-            {
-                git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+                match Command::new("git")
+                    .current_dir(current_dir)
+                    .arg("describe")
+                    .arg("--always")
+                    .arg("--exclude='*'")
+                    .arg("--long")
+                    .arg("--abbrev=1000")
+                    .arg("--dirty")
+                    .output()
+                    .map(|o| o.stdout)
+                {
+                    Err(e) => {
+                        writeln!(
+                            w,
+                            "cargo:warning=Error getting git revision from {current_dir:?}: {e:?}"
+                        )?;
+                    }
+                    Ok(git_describe) => {
+                        git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+                    }
+                }
             }
         }
     }
