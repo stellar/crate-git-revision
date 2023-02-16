@@ -85,9 +85,9 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
             // Note: That changes in the above files may not result in material
             // changes to the crate, but changes in any should invalidate the
             // revision since the revision can be changed by any of the above.
-            writeln!(w, "cargo:rerun-if-changed={}/index", git_dir)?;
-            writeln!(w, "cargo:rerun-if-changed={}/HEAD", git_dir)?;
-            writeln!(w, "cargo:rerun-if-changed={}/refs", git_dir)?;
+            writeln!(w, "cargo:rerun-if-changed={git_dir}/index")?;
+            writeln!(w, "cargo:rerun-if-changed={git_dir}/HEAD")?;
+            writeln!(w, "cargo:rerun-if-changed={git_dir}/refs")?;
 
             if let Ok(git_describe) = Command::new("git")
                 .current_dir(current_dir)
