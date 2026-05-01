@@ -14,6 +14,18 @@ Injects an environment variable `GIT_REVISION` into the build that contains
 the full git revision, with a `-dirty` suffix if the working directory is
 dirty.
 
+For example, for a clean worktree:
+
+```text
+1a2b3c4d5e6f7890abcdef1234567890abcdef12
+```
+
+For example, suffixed with `-dirty` when a worktree contains changes:
+
+```text
+1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
+```
+
 Requires the use of a build.rs build script. See [Build Scripts]() for more
 details on how Rust build scripts work.
 
