@@ -110,7 +110,9 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                         )?;
                     }
                     Ok(rev_parse) => {
-                        let sha = str::from_utf8(&rev_parse).ok().map(|s| s.trim().to_string());
+                        let sha = str::from_utf8(&rev_parse)
+                            .ok()
+                            .map(|s| s.trim().to_string());
                         if let Some(sha) = sha.filter(|s| !s.is_empty()) {
                             let dirty = match Command::new("git")
                                 .current_dir(current_dir)
