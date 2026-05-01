@@ -20,7 +20,8 @@ For example, for a clean worktree:
 1a2b3c4d5e6f7890abcdef1234567890abcdef12
 ```
 
-For example, suffixed with `-dirty` when a worktree contains changes:
+For example, suffixed with `-dirty` when a worktree contains changes or
+untracked files:
 
 ```text
 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
