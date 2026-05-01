@@ -103,7 +103,6 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                     .arg("--exclude=*")
                     .arg("--long")
                     .arg("--abbrev=1000")
-                    .arg("--dirty")
                     .output()
                     .map(|o| o.stdout)
                 {
@@ -114,7 +113,26 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                         )?;
                     }
                     Ok(git_describe) => {
-                        git_sha = str::from_utf8(&git_describe).ok().map(str::to_string);
+                        let sha = str::from_utf8(&git_describe).ok().map(|s| s.trim().to_string());
+                        if let Some(sha) = sha.filter(|s| !s.is_empty()) {
+                            let dirty = match Command::new("git")
+                                .current_dir(current_dir)
+                                .arg("status")
+                                .arg("--porcelain")
+                                .output()
+                                .map(|o| o.stdout)
+                            {
+                                Ok(status) => !status.is_empty(),
+                                Err(e) => {
+                                    writeln!(
+                                        w,
+                                        "cargo:warning=Error checking git dirty status from {current_dir:?}: {e:?}"
+                                    )?;
+                                    false
+                                }
+                            };
+                            git_sha = Some(if dirty { format!("{sha}-dirty") } else { sha });
+                        }
                     }
                 }
             }
