@@ -67,7 +67,7 @@ fn test_init() {
     let expected = "cargo:rerun-if-changed=.git/index
 cargo:rerun-if-changed=.git/HEAD
 cargo:rerun-if-changed=.git/refs
-cargo:rustc-env=GIT_REVISION=[0-9a-f]+";
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}\n";
     println!("{out}");
     println!("{expected}");
     assert!(Regex::new(expected).unwrap().is_match(out));
@@ -97,7 +97,7 @@ fn test_init_subdir() {
         "cargo:rerun-if-changed={gd}/.git/index
 cargo:rerun-if-changed={gd}/.git/HEAD
 cargo:rerun-if-changed={gd}/.git/refs
-cargo:rustc-env=GIT_REVISION=[0-9a-f]+",
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{{40}}\n",
         gd = git_dir.display()
     );
     println!("{out}");
@@ -122,10 +122,53 @@ fn test_dirty() {
     let expected = "cargo:rerun-if-changed=.git/index
 cargo:rerun-if-changed=.git/HEAD
 cargo:rerun-if-changed=.git/refs
-cargo:rustc-env=GIT_REVISION=[0-9a-f]+-dirty";
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
     println!("{out}");
     println!("{expected}");
     assert!(Regex::new(expected).unwrap().is_match(out));
+}
+
+#[test]
+fn test_init_with_tag_does_not_use_describe() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let git_dir = tempdir.path();
+
+    init_git_repo(git_dir);
+
+    let output = Command::new("git")
+        .current_dir(git_dir)
+        .arg("tag")
+        .arg("-a")
+        .arg("v1.0.0")
+        .arg("-m")
+        .arg("tag")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let file = git_dir.join("readme");
+    fs::write(file, "second").unwrap();
+    let output = Command::new("git")
+        .current_dir(git_dir)
+        .arg("commit")
+        .arg("-am")
+        .arg("second")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+
+    let mut out = Vec::new();
+    let res = super::__init(&mut out, git_dir);
+    assert!(res.is_ok());
+    let out = str::from_utf8(&out).unwrap();
+    let expected = "cargo:rerun-if-changed=.git/index
+cargo:rerun-if-changed=.git/HEAD
+cargo:rerun-if-changed=.git/refs
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}\n";
+    println!("{out}");
+    println!("{expected}");
+    assert!(Regex::new(expected).unwrap().is_match(out));
+    assert!(!out.contains("v1.0.0"));
 }
 
 #[test]
