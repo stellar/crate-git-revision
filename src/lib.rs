@@ -98,11 +98,8 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
 
                 match Command::new("git")
                     .current_dir(current_dir)
-                    .arg("describe")
-                    .arg("--always")
-                    .arg("--exclude=*")
-                    .arg("--long")
-                    .arg("--abbrev=1000")
+                    .arg("rev-parse")
+                    .arg("HEAD")
                     .output()
                     .map(|o| o.stdout)
                 {
@@ -112,8 +109,8 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                             "cargo:warning=Error getting git revision from {current_dir:?}: {e:?}"
                         )?;
                     }
-                    Ok(git_describe) => {
-                        let sha = str::from_utf8(&git_describe).ok().map(|s| s.trim().to_string());
+                    Ok(rev_parse) => {
+                        let sha = str::from_utf8(&rev_parse).ok().map(|s| s.trim().to_string());
                         if let Some(sha) = sha.filter(|s| !s.is_empty()) {
                             let dirty = match Command::new("git")
                                 .current_dir(current_dir)
