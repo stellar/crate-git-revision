@@ -18,11 +18,17 @@
 //! 1a2b3c4d5e6f7890abcdef1234567890abcdef12
 //! ```
 //!
-//! For example, suffixed with `-dirty` when a worktree contains changes:
+//! For example, suffixed with `-dirty` when a worktree contains changes or
+//! untracked files:
 //!
 //! ```text
 //! 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
 //! ```
+//!
+//! The dirty check uses `git status --porcelain`, which also reports
+//! submodule state changes. Crates that vendor submodules may produce
+//! `-dirty` builds where they did not previously when the submodule's
+//! working tree differs from its recorded commit.
 //!
 //! Requires the use of a build.rs build script. See [Build Scripts]() for more
 //! details on how Rust build scripts work.
@@ -130,6 +136,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                                 .current_dir(current_dir)
                                 .arg("status")
                                 .arg("--porcelain")
+                                .arg("--untracked-files=normal")
                                 .output()
                                 .map(|o| o.stdout)
                             {
@@ -137,9 +144,9 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                                 Err(e) => {
                                     writeln!(
                                         w,
-                                        "cargo:warning=Error checking git dirty status from {current_dir:?}: {e:?}"
+                                        "cargo:warning=Error checking git dirty status from {current_dir:?}, marking as dirty: {e:?}"
                                     )?;
-                                    false
+                                    true
                                 }
                             };
                             git_sha = Some(if dirty { format!("{sha}-dirty") } else { sha });
