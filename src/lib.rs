@@ -158,7 +158,10 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
     }
 
     if let Some(git_sha) = git_sha {
-        writeln!(w, "cargo:rustc-env=GIT_REVISION={git_sha}")?;
+        let git_sha = git_sha.trim_end();
+        if !git_sha.is_empty() {
+            writeln!(w, "cargo:rustc-env=GIT_REVISION={git_sha}")?;
+        }
     }
 
     Ok(())

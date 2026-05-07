@@ -218,3 +218,53 @@ fn test_published() {
     println!("{expected}");
     assert_eq!(out, expected);
 }
+
+#[test]
+fn test_published_empty_sha() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let crate_dir = tempdir.path();
+
+    let vcs_info = r#"{
+  "git": {
+    "sha1": ""
+  },
+  "path_in_vcs": ""
+}"#;
+
+    let file = crate_dir.join(".cargo_vcs_info.json");
+    fs::write(file, vcs_info).unwrap();
+
+    let mut out = Vec::new();
+    let res = super::__init(&mut out, crate_dir);
+    assert!(res.is_ok());
+    let out = str::from_utf8(&out).unwrap();
+    let expected = "";
+    println!("{out}");
+    println!("{expected}");
+    assert_eq!(out, expected);
+}
+
+#[test]
+fn test_published_trailing_whitespace() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let crate_dir = tempdir.path();
+
+    let vcs_info = r#"{
+  "git": {
+    "sha1": "0c5255b6f47649305fcb68edccb285510aec71a7 \r\n\t\n"
+  },
+  "path_in_vcs": ""
+}"#;
+
+    let file = crate_dir.join(".cargo_vcs_info.json");
+    fs::write(file, vcs_info).unwrap();
+
+    let mut out = Vec::new();
+    let res = super::__init(&mut out, crate_dir);
+    assert!(res.is_ok());
+    let out = str::from_utf8(&out).unwrap();
+    let expected = "cargo:rustc-env=GIT_REVISION=0c5255b6f47649305fcb68edccb285510aec71a7\n";
+    println!("{out}");
+    println!("{expected}");
+    assert_eq!(out, expected);
+}
