@@ -75,7 +75,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
     if let Ok(vcs_info) = read_to_string(current_dir.join(".cargo_vcs_info.json")) {
         let vcs_info: Result<CargoVcsInfo, _> = serde_json::from_str(&vcs_info);
         if let Ok(vcs_info) = vcs_info {
-            git_sha = Some(vcs_info.git.sha1);
+            git_sha = Some(vcs_info.git.sha1.trim().to_string());
         }
     }
 
@@ -157,11 +157,8 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
         }
     }
 
-    if let Some(git_sha) = git_sha {
-        let git_sha = git_sha.trim_end();
-        if !git_sha.is_empty() {
-            writeln!(w, "cargo:rustc-env=GIT_REVISION={git_sha}")?;
-        }
+    if let Some(git_sha) = git_sha.filter(|s| !s.is_empty()) {
+        writeln!(w, "cargo:rustc-env=GIT_REVISION={git_sha}")?;
     }
 
     Ok(())
