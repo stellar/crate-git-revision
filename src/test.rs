@@ -129,7 +129,7 @@ cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
 }
 
 #[test]
-fn test_dirty_untracked() {
+fn test_untracked_is_not_dirty() {
     let tempdir = tempfile::tempdir().unwrap();
     let git_dir = tempdir.path();
 
@@ -145,10 +145,11 @@ fn test_dirty_untracked() {
     let expected = "cargo:rerun-if-changed=.git/index
 cargo:rerun-if-changed=.git/HEAD
 cargo:rerun-if-changed=.git/refs
-cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}\n";
     println!("{out}");
     println!("{expected}");
     assert!(Regex::new(expected).unwrap().is_match(out));
+    assert!(!out.contains("-dirty"));
 }
 
 #[test]
@@ -267,6 +268,51 @@ fn test_published_empty_sha() {
     println!("{out}");
     println!("{expected}");
     assert_eq!(out, expected);
+}
+
+// Verifies that ambient GIT_* env vars in the parent process do not
+// influence __init. Done by re-invoking the test binary as a subprocess
+// with adversarial env vars set on the child, so the env modifications
+// never touch the parent test process and cannot race with parallel tests.
+#[test]
+fn test_ambient_git_env_vars_are_ignored() {
+    const CHILD_REPO_ENV: &str = "CRATE_GIT_REVISION_TEST_CHILD_REPO";
+
+    if let Some(git_dir) = std::env::var_os(CHILD_REPO_ENV) {
+        let mut out = Vec::new();
+        super::__init(&mut out, Path::new(&git_dir)).unwrap();
+        let out = str::from_utf8(&out).unwrap();
+        let expected = "cargo:rerun-if-changed=.git/index
+cargo:rerun-if-changed=.git/HEAD
+cargo:rerun-if-changed=.git/refs
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}\n";
+        assert!(
+            Regex::new(expected).unwrap().is_match(out),
+            "child __init output did not match: {out}"
+        );
+        return;
+    }
+
+    let tempdir = tempfile::tempdir().unwrap();
+    let git_dir = tempdir.path();
+    init_git_repo(git_dir);
+
+    let output = Command::new(std::env::current_exe().unwrap())
+        .arg("--exact")
+        .arg("--nocapture")
+        .arg("test::test_ambient_git_env_vars_are_ignored")
+        .env(CHILD_REPO_ENV, git_dir)
+        .env("GIT_DIR", "/nonexistent")
+        .env("GIT_WORK_TREE", "/nonexistent")
+        .env("GIT_INDEX_FILE", "/nonexistent")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "child process failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
 }
 
 #[test]
