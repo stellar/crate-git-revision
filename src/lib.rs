@@ -29,6 +29,29 @@
 //! `-dirty` builds where they did not previously when the submodule's
 //! working tree differs from its recorded commit.
 //!
+//! ### Untracked files are not considered dirty
+//!
+//! Only changes to tracked files mark the revision as `-dirty`. Untracked
+//! files in the worktree are intentionally ignored (`git status` is invoked
+//! with `--untracked-files=no`).
+//!
+//! Detecting untracked files reliably from a build script would require
+//! telling Cargo to re-run `build.rs` whenever any file appears anywhere in
+//! the crate directory (e.g. `cargo:rerun-if-changed=.`). That makes the
+//! build script — and everything that depends on it — re-run on essentially
+//! every filesystem change in the tree, including editor swap files and
+//! unrelated edits. The cost on every incremental build outweighs the
+//! marginal correctness gain, especially since untracked files do not
+//! typically affect a Rust build: source files are pulled into a crate
+//! explicitly via `mod` declarations and `#[path]` attributes, not by
+//! scanning the filesystem.
+//!
+//! Without watching the whole tree, the dirty signal for untracked files
+//! would be inconsistent: a cached build would report clean even after an
+//! untracked file appeared, and only `cargo clean` followed by a fresh
+//! build would surface it. To avoid that inconsistency, untracked files
+//! are not part of the dirty check at all.
+//!
 //! Requires the use of a build.rs build script. See [Build Scripts]() for more
 //! details on how Rust build scripts work.
 //!
