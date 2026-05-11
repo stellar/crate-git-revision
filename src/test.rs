@@ -252,7 +252,7 @@ fn test_published_empty_sha() {
 fn test_ambient_git_env_vars_are_ignored() {
     const CHILD_REPO_ENV: &str = "CRATE_GIT_REVISION_TEST_CHILD_REPO";
 
-    if let Ok(git_dir) = std::env::var(CHILD_REPO_ENV) {
+    if let Some(git_dir) = std::env::var_os(CHILD_REPO_ENV) {
         let mut out = Vec::new();
         super::__init(&mut out, Path::new(&git_dir)).unwrap();
         let out = str::from_utf8(&out).unwrap();
