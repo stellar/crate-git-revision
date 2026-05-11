@@ -138,9 +138,16 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                                 .arg("--porcelain")
                                 .arg("--untracked-files=normal")
                                 .output()
-                                .map(|o| o.stdout)
                             {
-                                Ok(status) => !status.is_empty(),
+                                Ok(output) if output.status.success() => !output.stdout.is_empty(),
+                                Ok(output) => {
+                                    writeln!(
+                                        w,
+                                        "cargo:warning=Error checking git dirty status from {current_dir:?}, marking as dirty: git status exited with {status}",
+                                        status = output.status,
+                                    )?;
+                                    true
+                                }
                                 Err(e) => {
                                     writeln!(
                                         w,

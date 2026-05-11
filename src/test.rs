@@ -152,6 +152,31 @@ cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
 }
 
 #[test]
+fn test_dirty_when_status_fails() {
+    let tempdir = tempfile::tempdir().unwrap();
+    let git_dir = tempdir.path();
+
+    init_git_repo(git_dir);
+
+    // Corrupt the index so `git status` fails with a non-zero exit but
+    // `git rev-parse HEAD` still succeeds.
+    fs::write(git_dir.join(".git/index"), "garbage").unwrap();
+
+    let mut out = Vec::new();
+    let res = super::__init(&mut out, git_dir);
+    assert!(res.is_ok());
+    let out = str::from_utf8(&out).unwrap();
+    let expected = "cargo:rerun-if-changed=.git/index
+cargo:rerun-if-changed=.git/HEAD
+cargo:rerun-if-changed=.git/refs
+cargo:warning=Error checking git dirty status from .*, marking as dirty: .*
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
+    println!("{out}");
+    println!("{expected}");
+    assert!(Regex::new(expected).unwrap().is_match(out));
+}
+
+#[test]
 fn test_init_with_tag_does_not_use_describe() {
     let tempdir = tempfile::tempdir().unwrap();
     let git_dir = tempdir.path();
