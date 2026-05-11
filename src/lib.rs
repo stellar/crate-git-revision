@@ -82,8 +82,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
     // Read the git revision from the git repository containing the code being
     // built.
     if git_sha.is_none() {
-        match Command::new("git")
-            .current_dir(current_dir)
+        match git(current_dir)
             .arg("rev-parse")
             .arg("--git-dir")
             .output()
@@ -114,8 +113,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                 writeln!(w, "cargo:rerun-if-changed={git_dir}/HEAD")?;
                 writeln!(w, "cargo:rerun-if-changed={git_dir}/refs")?;
 
-                match Command::new("git")
-                    .current_dir(current_dir)
+                match git(current_dir)
                     .arg("rev-parse")
                     .arg("HEAD")
                     .output()
@@ -132,8 +130,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                             .ok()
                             .map(|s| s.trim().to_string());
                         if let Some(sha) = sha.filter(|s| !s.is_empty()) {
-                            let dirty = match Command::new("git")
-                                .current_dir(current_dir)
+                            let dirty = match git(current_dir)
                                 .arg("status")
                                 .arg("--porcelain")
                                 .arg("--untracked-files=normal")
@@ -162,6 +159,40 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
     }
 
     Ok(())
+}
+
+// Build a `git` Command insulated from the parent process's environment and
+// configuration so that the recorded revision depends only on the repository
+// being built, not on the machine or user running the build.
+fn git(current_dir: &Path) -> Command {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(current_dir);
+    // Remove all ambient GIT_* env vars so they cannot influence git's
+    // behaviour - notably GIT_DIR, GIT_WORK_TREE, and GIT_INDEX_FILE, which
+    // would redirect git to a different repository. Other (non-GIT_) env
+    // vars are inherited so the command can still use environment variables
+    // like PATH, or SystemRoot on Windows.
+    for (k, _) in std::env::vars_os() {
+        if k.to_string_lossy().starts_with("GIT_") {
+            cmd.env_remove(&k);
+        }
+    }
+    // GIT_CONFIG_NOSYSTEM=1 tells git not to read the system-wide config
+    // (e.g. /etc/gitconfig), so machine-level git settings cannot change
+    // the revision output.
+    cmd.env("GIT_CONFIG_NOSYSTEM", "1");
+    // GIT_CONFIG_GLOBAL pointed at /dev/null tells git not to read the
+    // user's global config (~/.gitconfig and $XDG_CONFIG_HOME/git/config).
+    // On Windows /dev/null does not exist, which git silently treats as an
+    // empty config - the same effect. Combined with NOSYSTEM, this leaves
+    // only the repository's local config in effect. Requires git 2.32+;
+    // older git ignores it and still reads the user's global config.
+    cmd.env("GIT_CONFIG_GLOBAL", "/dev/null");
+    // GIT_TERMINAL_PROMPT=0 tells git never to prompt at the terminal. In
+    // non-interactive environments like CI a prompt would hang the build
+    // indefinitely; this turns the prompt into an immediate error instead.
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd
 }
 
 #[derive(serde_derive::Serialize, serde_derive::Deserialize, Default)]
