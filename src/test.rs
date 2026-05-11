@@ -129,7 +129,7 @@ cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
 }
 
 #[test]
-fn test_dirty_untracked() {
+fn test_untracked_is_not_dirty() {
     let tempdir = tempfile::tempdir().unwrap();
     let git_dir = tempdir.path();
 
@@ -145,10 +145,11 @@ fn test_dirty_untracked() {
     let expected = "cargo:rerun-if-changed=.git/index
 cargo:rerun-if-changed=.git/HEAD
 cargo:rerun-if-changed=.git/refs
-cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}-dirty\n";
+cargo:rustc-env=GIT_REVISION=[0-9a-f]{40}\n";
     println!("{out}");
     println!("{expected}");
     assert!(Regex::new(expected).unwrap().is_match(out));
+    assert!(!out.contains("-dirty"));
 }
 
 #[test]

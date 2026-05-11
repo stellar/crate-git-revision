@@ -18,8 +18,7 @@
 //! 1a2b3c4d5e6f7890abcdef1234567890abcdef12
 //! ```
 //!
-//! For example, suffixed with `-dirty` when a worktree contains changes or
-//! untracked files:
+//! For example, suffixed with `-dirty` when a worktree contains changes:
 //!
 //! ```text
 //! 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
@@ -136,7 +135,7 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
                                 .current_dir(current_dir)
                                 .arg("status")
                                 .arg("--porcelain")
-                                .arg("--untracked-files=normal")
+                                .arg("--untracked-files=no")
                                 .output()
                                 .map(|o| o.stdout)
                             {
