@@ -264,10 +264,28 @@ fn test_published_empty_sha() {
     let res = super::__init(&mut out, crate_dir);
     assert!(res.is_ok());
     let out = str::from_utf8(&out).unwrap();
-    let expected = "";
+    let expected = "cargo:warning=GIT_REVISION not set\n";
     println!("{out}");
     println!("{expected}");
-    assert_eq!(out, expected);
+    assert!(Regex::new(expected).unwrap().is_match(out));
+    assert!(!out.contains("cargo:rustc-env=GIT_REVISION="));
+}
+
+#[test]
+fn test_warns_when_revision_cannot_be_derived() {
+    // A directory that is neither a git checkout nor a published crate
+    // (no .cargo_vcs_info.json) should not set GIT_REVISION and should
+    // emit a cargo:warning so the missing value is visible.
+    let tempdir = tempfile::tempdir().unwrap();
+    let crate_dir = tempdir.path();
+
+    let mut out = Vec::new();
+    let res = super::__init(&mut out, crate_dir);
+    assert!(res.is_ok());
+    let out = str::from_utf8(&out).unwrap();
+    println!("{out}");
+    assert!(out.contains("cargo:warning=GIT_REVISION not set"));
+    assert!(!out.contains("cargo:rustc-env=GIT_REVISION="));
 }
 
 // Verifies that ambient GIT_* env vars in the parent process do not

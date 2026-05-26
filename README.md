@@ -16,22 +16,22 @@ dirty.
 
 For example, for a clean worktree:
 
-```text
+```
 1a2b3c4d5e6f7890abcdef1234567890abcdef12
 ```
 
 For example, suffixed with `-dirty` when a worktree contains changes:
 
-```text
+```
 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
 ```
 
-The dirty check uses `git status --porcelain`, which also reports submodule
-state changes. Crates that vendor submodules may produce `-dirty` builds
-where they did not previously when the submodule's working tree differs
-from its recorded commit.
+The dirty check uses `git status --porcelain`, which also reports
+submodule state changes. Crates that vendor submodules may produce
+`-dirty` builds where they did not previously when the submodule's
+working tree differs from its recorded commit.
 
-### Untracked files are not considered dirty
+#### Untracked files are not considered dirty
 
 Only changes to tracked files mark the revision as `-dirty`. Untracked
 files in the worktree are intentionally ignored (`git status` is invoked
@@ -77,7 +77,29 @@ crate_git_revision::init();
 Add the following to the crate's `lib.rs` or `main.rs` file:
 
 ```rust
-pub const GIT_REVISION: &str = env!("GIT_REVISION");
+pub const GIT_REVISION: Option<&str> = option_env!("GIT_REVISION");
 ```
+
+#### Use `option_env!`, not `env!`
+
+Downstream code **should** read `GIT_REVISION` with [`option_env!`] so
+the application can decide for itself what to do when the revision is
+absent.
+
+The build script intentionally does not set `GIT_REVISION` when the
+revision cannot be derived (no git binary, not in a git checkout, no
+`.cargo_vcs_info.json`, sandbox or permission failures, etc.), and does
+not substitute any value in its place. Only the application knows
+whether a missing revision is acceptable and what should happen in that
+case — this crate stays out of that decision on purpose.
+
+Using [`env!`] when the revision is absent produces a hard compile failure
+with no helpful diagnostic, which breaks vendored builds, source tarballs,
+and restricted build environments. Reserve [`env!("GIT_REVISION")`][`env!`]
+for cases where the revision is genuinely critical and the build *must* fail
+without it (e.g. a release artifact whose provenance is non-negotiable).
+
+When the revision cannot be derived, the build script emits a
+`cargo:warning` so the missing value is visible in build output.
 
 License: Apache-2.0
