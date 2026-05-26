@@ -84,9 +84,14 @@ use std::{fs::read_to_string, path::Path, process::Command, str};
 /// the current crate.
 ///
 /// Intended to be called from within a build script, `build.rs` file, for the
-/// crate.
+/// crate. Requires the current directory to be the directory containing the
+/// build script, as is the case when cargo executes the build script.
 pub fn init() {
-    let _res = __init(&mut std::io::stdout(), &std::env::current_dir().unwrap());
+    // Cargo guarantees the current directory is the build script's package
+    // manifest directory when build.rs is invoked.
+    // https://doc.rust-lang.org/cargo/reference/build-scripts.html#inputs-to-the-build-script
+    let current_dir = std::env::current_dir().expect("getting current directory");
+    let _res = __init(&mut std::io::stdout(), &current_dir);
 }
 
 fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()> {
