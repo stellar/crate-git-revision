@@ -52,7 +52,33 @@
 //! build would surface it. To avoid that inconsistency, untracked files
 //! are not part of the dirty check at all.
 //!
-//! Requires the use of a build.rs build script. See [Build Scripts]() for more
+//! ### Builds without version info
+//!
+//! When neither `.cargo_vcs_info.json` nor a working `git` is available —
+//! e.g. building from a source tarball that is not a published crate, or
+//! in an environment without the `git` binary — `GIT_REVISION` is left
+//! unset rather than substituted with a placeholder.
+//!
+//! ### Git use
+//!
+//! Shallow clones are fine — only `HEAD` is inspected, so a depth of 1 is
+//! sufficient.
+//!
+//! For reproducible builds, ensure the working tree is clean at the
+//! moment the build script runs. Build steps that modify tracked files
+//! beforehand (in-place version bumps, code generators that overwrite
+//! checked-in files) will produce a `-dirty` revision. Building from the
+//! published crate avoids this by taking the `.cargo_vcs_info.json` path.
+//!
+//! Path-redirecting `GIT_*` environment variables (`GIT_DIR`,
+//! `GIT_WORK_TREE`, etc.) are stripped from the `git` invocations so a CI
+//! runner that sets them for an outer repository does not leak into the
+//! recorded revision. `GIT_TERMINAL_PROMPT=0` is set so misconfigured
+//! credentials cannot hang a non-interactive build.
+//!
+//! ### Build scripts
+//!
+//! Requires the use of a build.rs build script. See [Build Scripts] for more
 //! details on how Rust build scripts work.
 //!
 //! [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
