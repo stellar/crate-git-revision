@@ -110,9 +110,16 @@ use std::{fs::read_to_string, path::Path, process::Command, str};
 /// the current crate.
 ///
 /// Intended to be called from within a build script, `build.rs` file, for the
-/// crate.
+/// crate. Uses `CARGO_MANIFEST_DIR` to locate the crate, which is set by Cargo
+/// when executing the build script.
 pub fn init() {
-    let _res = __init(&mut std::io::stdout(), &std::env::current_dir().unwrap());
+    // Use CARGO_MANIFEST_DIR rather than the current directory so the crate
+    // path is correct even when `package.build` points to a build script
+    // outside the package source tree.
+    // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR is set by cargo when executing build scripts");
+    let _res = __init(&mut std::io::stdout(), Path::new(&manifest_dir));
 }
 
 fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()> {
