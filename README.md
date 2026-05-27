@@ -1,5 +1,3 @@
-# crate-git-revision
-
 Embed the git revision of a crate in its build.
 
 Supports embedding the version from a local or remote git repository the build
@@ -26,10 +24,10 @@ For example, suffixed with `-dirty` when a worktree contains changes:
 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
 ```
 
-The dirty check uses `git status --porcelain`, which also reports submodule
-state changes. Crates that vendor submodules may produce `-dirty` builds
-where they did not previously when the submodule's working tree differs
-from its recorded commit.
+The dirty check uses `git status --porcelain`, which also reports
+submodule state changes. Crates that vendor submodules may produce
+`-dirty` builds where they did not previously when the submodule's
+working tree differs from its recorded commit.
 
 ### Untracked files are not considered dirty
 
@@ -59,7 +57,7 @@ details on how Rust build scripts work.
 
 [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
 
-#### Examples
+### Examples
 
 Add the following to the crate's `Cargo.toml` file:
 
@@ -76,8 +74,6 @@ crate_git_revision::init();
 
 Add the following to the crate's `lib.rs` or `main.rs` file:
 
-```rust
+```ignore
 pub const GIT_REVISION: &str = env!("GIT_REVISION");
 ```
-
-License: Apache-2.0
