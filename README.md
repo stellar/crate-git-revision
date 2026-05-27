@@ -80,7 +80,7 @@ credentials cannot hang a non-interactive build.
 
 #### Build scripts
 
-Requires the use of a build.rs build script. See [Build Scripts]() for more
+Requires the use of a build.rs build script. See [Build Scripts] for more
 details on how Rust build scripts work.
 
 [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
