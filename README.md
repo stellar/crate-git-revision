@@ -52,7 +52,33 @@ untracked file appeared, and only `cargo clean` followed by a fresh
 build would surface it. To avoid that inconsistency, untracked files
 are not part of the dirty check at all.
 
-Requires the use of a build.rs build script. See [Build Scripts]() for more
+### Builds without version info
+
+When neither `.cargo_vcs_info.json` nor a working `git` is available —
+e.g. building from a source tarball that is not a published crate, or
+in an environment without the `git` binary — `GIT_REVISION` is left
+unset rather than substituted with a placeholder.
+
+### Git use
+
+Shallow clones are fine — only `HEAD` is inspected, so a depth of 1 is
+sufficient.
+
+For reproducible builds, ensure the working tree is clean at the
+moment the build script runs. Build steps that modify tracked files
+beforehand (in-place version bumps, code generators that overwrite
+checked-in files) will produce a `-dirty` revision. Building from the
+published crate avoids this by taking the `.cargo_vcs_info.json` path.
+
+Path-redirecting `GIT_*` environment variables (`GIT_DIR`,
+`GIT_WORK_TREE`, etc.) are stripped from the `git` invocations so a CI
+runner that sets them for an outer repository does not leak into the
+recorded revision. `GIT_TERMINAL_PROMPT=0` is set so misconfigured
+credentials cannot hang a non-interactive build.
+
+### Build scripts
+
+Requires the use of a build.rs build script. See [Build Scripts] for more
 details on how Rust build scripts work.
 
 [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
@@ -75,5 +101,27 @@ crate_git_revision::init();
 Add the following to the crate's `lib.rs` or `main.rs` file:
 
 ```ignore
-pub const GIT_REVISION: &str = env!("GIT_REVISION");
+pub const GIT_REVISION: Option<&str> = option_env!("GIT_REVISION");
 ```
+
+### Use `option_env!`, not `env!`
+
+Downstream code **should** read `GIT_REVISION` with [`option_env!`] so
+the application can decide for itself what to do when the revision is
+absent.
+
+The build script intentionally does not set `GIT_REVISION` when the
+revision cannot be derived (no git binary, not in a git checkout, no
+`.cargo_vcs_info.json`, sandbox or permission failures, etc.), and does
+not substitute any value in its place. Only the application knows
+whether a missing revision is acceptable and what should happen in that
+case — this crate stays out of that decision on purpose.
+
+Using [`env!`] when the revision is absent produces a hard compile failure
+with no helpful diagnostic, which breaks vendored builds, source tarballs,
+and restricted build environments. Reserve [`env!("GIT_REVISION")`][`env!`]
+for cases where the revision is genuinely critical and the build *must* fail
+without it (e.g. a release artifact whose provenance is non-negotiable).
+
+When the revision cannot be derived, the build script emits a
+`cargo:warning` so the missing value is visible in build output.
