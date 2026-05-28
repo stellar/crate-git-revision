@@ -22,7 +22,8 @@ fmt:
 	cargo fmt --all
 
 readme:
-	cargo readme > README.md
+	cargo +nightly rustdoc -- -Zunstable-options -wjson
+	jq -r '.index[.root|tostring].docs' target/doc/crate_git_revision.json > README.md
 
 clean:
 	cargo clean

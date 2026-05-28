@@ -1,5 +1,3 @@
-# crate-git-revision
-
 Embed the git revision of a crate in its build.
 
 Supports embedding the version from a local or remote git repository the build
@@ -16,13 +14,13 @@ dirty.
 
 For example, for a clean worktree:
 
-```
+```text
 1a2b3c4d5e6f7890abcdef1234567890abcdef12
 ```
 
 For example, suffixed with `-dirty` when a worktree contains changes:
 
-```
+```text
 1a2b3c4d5e6f7890abcdef1234567890abcdef12-dirty
 ```
 
@@ -31,7 +29,7 @@ submodule state changes. Crates that vendor submodules may produce
 `-dirty` builds where they did not previously when the submodule's
 working tree differs from its recorded commit.
 
-#### Untracked files are not considered dirty
+### Untracked files are not considered dirty
 
 Only changes to tracked files mark the revision as `-dirty`. Untracked
 files in the worktree are intentionally ignored (`git status` is invoked
@@ -54,14 +52,14 @@ untracked file appeared, and only `cargo clean` followed by a fresh
 build would surface it. To avoid that inconsistency, untracked files
 are not part of the dirty check at all.
 
-#### Builds without version info
+### Builds without version info
 
 When neither `.cargo_vcs_info.json` nor a working `git` is available —
 e.g. building from a source tarball that is not a published crate, or
 in an environment without the `git` binary — `GIT_REVISION` is left
 unset rather than substituted with a placeholder.
 
-#### Git use
+### Git use
 
 Shallow clones are fine — only `HEAD` is inspected, so a depth of 1 is
 sufficient.
@@ -78,14 +76,14 @@ runner that sets them for an outer repository does not leak into the
 recorded revision. `GIT_TERMINAL_PROMPT=0` is set so misconfigured
 credentials cannot hang a non-interactive build.
 
-#### Build scripts
+### Build scripts
 
 Requires the use of a build.rs build script. See [Build Scripts] for more
 details on how Rust build scripts work.
 
 [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html
 
-#### Examples
+### Examples
 
 Add the following to the crate's `Cargo.toml` file:
 
@@ -102,11 +100,11 @@ crate_git_revision::init();
 
 Add the following to the crate's `lib.rs` or `main.rs` file:
 
-```rust
+```ignore
 pub const GIT_REVISION: Option<&str> = option_env!("GIT_REVISION");
 ```
 
-#### Use `option_env!`, not `env!`
+### Use `option_env!`, not `env!`
 
 Downstream code **should** read `GIT_REVISION` with [`option_env!`] so
 the application can decide for itself what to do when the revision is
@@ -127,5 +125,3 @@ without it (e.g. a release artifact whose provenance is non-negotiable).
 
 When the revision cannot be derived, the build script emits a
 `cargo:warning` so the missing value is visible in build output.
-
-License: Apache-2.0
