@@ -250,7 +250,10 @@ fn __init(w: &mut impl std::io::Write, current_dir: &Path) -> std::io::Result<()
 // Build a `git` Command that ignores ambient path-redirecting GIT_* env vars,
 // so that the recorded revision is always for the repository at current_dir
 // and not whatever an outer process (e.g. `git rebase --exec cargo ...`) has
-// pointed git at. Mirrors the sanitization cargo applies in fetch_with_cli.
+// pointed git at. Mirrors the sanitization cargo applies in fetch_with_cli:
+// https://github.com/rust-lang/cargo/blob/84a7a403847019436b99266e592464a495d316da/src/cargo/sources/git/utils.rs#L1169-L1178
+// Note: this is not intended to guard against malicious env var injection, only
+// to avoid env vars that redirect git's path access to a different repository.
 fn git(current_dir: &Path) -> Command {
     let mut cmd = Command::new("git");
     cmd.current_dir(current_dir);
